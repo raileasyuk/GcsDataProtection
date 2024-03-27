@@ -18,6 +18,7 @@ public class GcsXmlRepository : IXmlRepository
     private readonly StorageClient _storageClient;
     private readonly string _bucketName;
     private readonly string? _objectPrefix;
+    private const int MaxRetries = 5;
 
     public GcsXmlRepository(ILogger<GcsXmlRepository> logger, StorageClient storageClient,
         IOptions<GcsDataProtectionConfiguration> gcsDataProtectionConfiguration)
@@ -27,10 +28,30 @@ public class GcsXmlRepository : IXmlRepository
         _bucketName = gcsDataProtectionConfiguration.Value.StorageBucket;
         _objectPrefix = gcsDataProtectionConfiguration.Value.ObjectPrefix;
     }
+    
+    private T Retry<T>(Func<T> func)
+    {
+        for (var i = 1; i < MaxRetries; i++)
+        {
+            try
+            {
+                return func();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Retry {retryCount} of {maxRetries} failed with {exception}. Retrying in 1 second.",
+                    i, MaxRetries, ex);
+                // Exponential backoff: 1, 2, 4, 8, 16 seconds
+                System.Threading.Thread.Sleep(1000 * (1 << i-1));
+            }
+        }
+        
+        return func();
+    }
 
     public IReadOnlyCollection<XElement> GetAllElements()
     {
-        var gcsObjects = _storageClient.ListObjects(_bucketName, _objectPrefix)
+        var gcsObjects = Retry(() => _storageClient.ListObjects(_bucketName, _objectPrefix))
             .Where(o => o.Name.EndsWith(".xml"));
 
         var elements = new List<XElement>();
@@ -39,7 +60,7 @@ public class GcsXmlRepository : IXmlRepository
         {
             _logger.LogDebug("Reading data from object {objectName}", o.Name);
             using var stream = new MemoryStream();
-            _storageClient.DownloadObject(o, stream);
+            Retry(() => _storageClient.DownloadObject(o, stream));
             stream.Position = 0;
             elements.Add(XElement.Load(stream));
         }
@@ -71,6 +92,6 @@ public class GcsXmlRepository : IXmlRepository
         stream.Position = 0;
 
         // Useful note: GCS uploads are atomic
-        _storageClient.UploadObject(_bucketName, objectName, "application/xml", stream);
+        Retry(() => _storageClient.UploadObject(_bucketName, objectName, "application/xml", stream));
     }
 }

@@ -5,6 +5,8 @@
 This library provides a way to store and retrieve ASP.NET data protection keys in an Google Cloud Storage bucket. The
 keys can either be stored in the root of the bucket, or the objects can use a configurable prefix.
 
+All GCS operations are attempted 5 times with exponential backup. If all 5 attempts fail the final exception is thrown.
+
 ## Installation
 
 A `net8.0` Nuget package is available [here](https://www.nuget.org/packages/Raileasy.DataProtection.Gcs/).
