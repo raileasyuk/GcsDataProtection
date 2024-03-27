@@ -1,0 +1,25 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <PackageId>Raileasy.DataProtection.Gcs</PackageId>
+        <Authors>Raileasy</Authors>
+        <Description>A key provider for DataProtection keys backed by Google Cloud Storage</Description>
+        <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+        <PackageTags>dataprotection aspnetcore google</PackageTags>
+        <RepositoryUrl>https://github.com/raileasyuk/GcsDataProtection.git</RepositoryUrl>
+        <RepositoryType>git</RepositoryType>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <PackageReference Include="Google.Cloud.Storage.V1" Version="4.10.0" />
+    </ItemGroup>
+
+</Project>

@@ -1,0 +1,43 @@
+name: Build and Potentially Publish
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    name: Build
+    steps:
+      # Checkout
+      - uses: actions/checkout@master
+
+      # Setup dotnet 8
+      - name: Setup dotnet
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: 8.x
+
+      # Build
+      - run: dotnet test -c Release && dotnet build -c Release
+
+      ################################################
+      # Create Nuget if this is a tag (release)
+      # Get tag version from git
+      - name: Get tag version
+        id: get_version
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          VERSION=${GITHUB_REF##*/v}
+          if [ "$VERSION" = 5 ]; then a="$c"; else a="$d"; fi
+          PRERELEASE=$([[ $VERSION == *-* ]] && echo "true" || echo "false") # if version in format 0.0.0-something, is prerelease
+          echo ::set-output name=VERSION::$VERSION
+          echo ::set-output name=PRERELEASE::$PRERELEASE
+
+      # Dotnet pack and nuget push
+      - name: Pack and Release
+        id: pack_release
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          PACKAGE="Raileasy.DataProtection.Gcs"
+          echo ::set-output name=PACKAGE::$PACKAGE
+          dotnet pack src/$PACKAGE --output nupkgs -p:Version=${{ steps.get_version.outputs.VERSION }}
+          dotnet nuget push nupkgs/$PACKAGE.*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json
