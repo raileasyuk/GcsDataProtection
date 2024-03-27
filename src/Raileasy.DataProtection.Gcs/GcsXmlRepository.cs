@@ -29,7 +29,7 @@ public class GcsXmlRepository : IXmlRepository
         _objectPrefix = gcsDataProtectionConfiguration.Value.ObjectPrefix;
     }
     
-    private T Retry<T>(Func<T> func)
+    private T DoWithRetry<T>(Func<T> func)
     {
         for (var i = 1; i < MaxRetries; i++)
         {
@@ -51,8 +51,9 @@ public class GcsXmlRepository : IXmlRepository
 
     public IReadOnlyCollection<XElement> GetAllElements()
     {
-        var gcsObjects = Retry(() => _storageClient.ListObjects(_bucketName, _objectPrefix))
-            .Where(o => o.Name.EndsWith(".xml"));
+        var gcsObjects = DoWithRetry(() =>
+            _storageClient.ListObjects(_bucketName, _objectPrefix).Where(o => o.Name.EndsWith(".xml")).ToList()
+        );
 
         var elements = new List<XElement>();
 
@@ -60,7 +61,7 @@ public class GcsXmlRepository : IXmlRepository
         {
             _logger.LogDebug("Reading data from object {objectName}", o.Name);
             using var stream = new MemoryStream();
-            Retry(() => _storageClient.DownloadObject(o, stream));
+            DoWithRetry(() => _storageClient.DownloadObject(o, stream));
             stream.Position = 0;
             elements.Add(XElement.Load(stream));
         }
@@ -92,6 +93,6 @@ public class GcsXmlRepository : IXmlRepository
         stream.Position = 0;
 
         // Useful note: GCS uploads are atomic
-        Retry(() => _storageClient.UploadObject(_bucketName, objectName, "application/xml", stream));
+        DoWithRetry(() => _storageClient.UploadObject(_bucketName, objectName, "application/xml", stream));
     }
 }
